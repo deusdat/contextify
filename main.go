@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -252,23 +253,15 @@ func processFile(fullPath, relPath string, writer *bufio.Writer, logger *slog.Lo
 		return fmt.Errorf("failed to write code block start: %w", err)
 	}
 
-	// Copy file contents
-	scanner := bufio.NewScanner(file)
-	lineCount := 0
-	for scanner.Scan() {
-		if _, err := fmt.Fprintf(writer, "%s\n", scanner.Text()); err != nil {
-			return fmt.Errorf("failed to write file content: %w", err)
-		}
-		lineCount++
+	// Copy file contents directly
+	bytesWritten, err := io.Copy(writer, file)
+	if err != nil {
+		return fmt.Errorf("failed to copy file content: %w", err)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading file %s: %w", fullPath, err)
-	}
+	logger.Debug("File processed", "path", relPath, "bytes", bytesWritten)
 
-	logger.Debug("File processed", "path", relPath, "lines", lineCount)
-
-	if _, err := fmt.Fprintf(writer, "```\n\n"); err != nil {
+	if _, err := fmt.Fprintf(writer, "\n```\n\n"); err != nil {
 		return fmt.Errorf("failed to write code block end: %w", err)
 	}
 
